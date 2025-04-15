@@ -78,6 +78,14 @@ df["v"] = np.abs(df["r"])
 df["sd"] = df["r"].shift(1).rolling(22).std()
 
 
+# Calcula a volatilidade instantânea (alguns valores podem ficar NA)
+vi_square = np.square(df["r"]) - np.square(df["r"].mean()) 
+vi_square[vi_square < 0] # Valores negativos
+
+vi = np.sqrt(vi_square)
+vi[vi.isna()] # Os valores negativos ficaram NA
+df["vi"] = vi
+
 # Define uma função para plotar os gráficos usanso ggplot
 def chart(
         data: pd.DataFrame, 
@@ -178,6 +186,24 @@ chart(
       "v", 
       title=f"Volatilidade real de {start_str} a {end_str}",
       ylab="Volatilidade real |r|",
+      hline=True
+)
+
+chart(
+      df, 
+      "date", 
+      "vi", 
+      title=f"Volatilidade instantânea de {start_str} a {end_str}",
+      ylab="Volatilidade instantânea",
+      hline=True
+)
+
+chart(
+      df, 
+      "date", 
+      "sd", 
+      title=f"Volatilidade realizada (22 dias úteis) de {start_str} a {end_str}",
+      ylab="Volatilidade realizada (22 dias úteis)",
       hline=True
 )
 
