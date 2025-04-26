@@ -7,7 +7,7 @@ from typing import List
 from scipy.stats import kstest
 
 # Define uma data de Início e Fim
-start_dt = datetime(year=2016, month=1, day=1)
+start_dt = datetime(year=2000, month=1, day=1)
 end_dt = datetime(year=2025, month=4, day=21)
 
 # Lê a base da taxa selic
@@ -443,10 +443,11 @@ fig
 # -------------------------------------------------------------------
 # Histograma dos retornos log-preço do BVSP
 # -------------------------------------------------------------------
+df["r_log"] = np.log(df["r"])
 fig = gg.ggplot(data=df) + gg.theme_light() +\
     gg.geom_histogram(
         mapping=gg.aes(
-            x="r"
+            x="r_log"
         ),
         fill="#c95e28"
     ) +\
@@ -592,4 +593,21 @@ fig = gg.ggplot(df_pvalues) + gg.theme_light() +\
        plot_title=gg.element_text(hjust=0.5)
     )
 fig
-        
+
+
+# -------------------------------------------------------------------
+# Recortando um pedaço da série e colocando na mesma escala da série
+# original
+# -------------------------------------------------------------------
+import seaborn as sns
+
+st_slice = datetime(year=2005, month=1, day=1)
+end_slice = datetime(year=2012, month=1, day=1)
+df_slice1 = df[(df["date"] > st_slice) & (df["date"] < end_slice)].copy()
+
+df["axis"] = np.arange(len(df), dtype="float32")
+df_slice1["axis"] = np.arange(len(df_slice1), dtype="float32")
+df_slice1["axis"] = df_slice1["axis"] * (np.max(df["axis"]) / np.max(df_slice1["axis"]))
+
+sns.lineplot(data=df, x="axis", y="r")
+sns.lineplot(data=df_slice1, x="axis", y="r")
