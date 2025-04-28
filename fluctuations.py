@@ -7,8 +7,8 @@ from typing import List
 from scipy.stats import kstest
 
 # Define uma data de Início e Fim
-start_dt = datetime(year=2000, month=1, day=1)
-end_dt = datetime(year=2025, month=4, day=21)
+start_dt = datetime(year=1993, month=4, day=28)
+end_dt = datetime(year=2025, month=4, day=27)
 
 # Lê a base da taxa selic
 selic_df = pd.read_csv("selic.csv", sep=";")
@@ -154,11 +154,22 @@ chart(
       yfmt=lambda x: f"{x*100:.2f}%"
 )
 
+df["log_selic"] = np.log(df["selic"])
+chart(
+      df, 
+      "date", 
+      "log_selic", 
+      title=f"Taxa Selic de {start_str} a {end_str}",
+      ylab="(Log) Taxa Selic (base 252 dias)",
+      yfmt=lambda x: f"{np.exp(x)*100:.2f}%"
+)
+
+
 chart(
       df, 
       "date", 
       "rn", 
-      title=f"Retorno nominal de {start_str} a {end_str}",
+      title=f"Retorno Log-Preço nominal do Ibovespa de {start_str} a {end_str}",
       ylab="Retorno nominal (r + rf)",
       hline=True
 )
@@ -167,7 +178,7 @@ chart(
       df, 
       "date", 
       "r", 
-      title=f"Retorno real de {start_str} a {end_str}",
+      title=f"Retorno Log-Preço Real do Ibovespa de {start_str} a {end_str}",
       ylab="Retorno real (r)",
       hline=True
 )
@@ -287,7 +298,7 @@ def autocorr_chart(
         fig = fig + gg.geom_hline(
             yintercept=0.0, 
             linetype="dashed", 
-            size=1.1, 
+            size=0.5, 
             color="#383838"
         )  
     
@@ -321,8 +332,8 @@ autocorr_chart(
     df["r"], 
     log=False, 
     n_lags=100,
-    title=f"Autocorrelação do retorno real de {start_str} a {end_str}",
-    ylab="Autocorrelação do retorno real (r)")
+    title=f"Autocorrelação normalizada do retorno do Ibovespa\n{start_str} a {end_str}",
+    ylab="Autocorrelação do retorno real do Ibovespa (r)")
 
 # Autocorrelações do retorno log-preço nominal
 autocorr_chart(
@@ -336,8 +347,8 @@ autocorr_chart(
 autocorr_chart(
     df["v"], 
     log=True, 
-    n_lags=100,
-    title=f"Autocorrelação da volatilidade real de {start_str} a {end_str} (log-log)",
+    n_lags=350,
+    title=f"Autocorrelação normalizada da volatilidade do Ibovespa (log-log)\n{start_str} a {end_str}",
     ylab="Autocorrelação da volatilidade real |r|")
 
 # Autocorrelaçoes da volatilidade nominal (módulo de rn)
@@ -427,6 +438,7 @@ fig = gg.ggplot(data = df_prices_long) + gg.theme_light() +\
        axis_text_x=gg.element_text(angle=30),
        legend_title=gg.element_blank(),
        legend_position="bottom",
+       legend_key=gg.element_blank(),
        plot_title=gg.element_text(hjust=0.5)
     ) +\
     gg.scale_color_manual(
@@ -599,15 +611,74 @@ fig
 # Recortando um pedaço da série e colocando na mesma escala da série
 # original
 # -------------------------------------------------------------------
-import seaborn as sns
 
-st_slice = datetime(year=2005, month=1, day=1)
-end_slice = datetime(year=2012, month=1, day=1)
+st_slice = datetime(year=2018, month=1, day=1)
+end_slice = datetime(year=2025, month=4, day=27)
+
+str_st_slice = st_slice.strftime("%d/%b/%Y")
+str_end_slice = end_slice.strftime("%d/%b/%Y")
+
 df_slice1 = df[(df["date"] > st_slice) & (df["date"] < end_slice)].copy()
 
 df["axis"] = np.arange(len(df), dtype="float32")
 df_slice1["axis"] = np.arange(len(df_slice1), dtype="float32")
 df_slice1["axis"] = df_slice1["axis"] * (np.max(df["axis"]) / np.max(df_slice1["axis"]))
 
-sns.lineplot(data=df, x="axis", y="r")
-sns.lineplot(data=df_slice1, x="axis", y="r")
+y_min, y_max = df["r"].min(), df["r"].max()
+y_max = np.max([np.abs(y_min), np.abs(y_max)])
+y_max = np.ceil(y_max*100.0)/100
+ticks = np.linspace(-y_max, y_max, 5)
+
+legends = (
+    ["Série Total" for x in range(len(df))],
+    ['Recorte' for x in range(len(df_slice1))]    
+)
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_line(
+        mapping=gg.aes(
+            x=df["axis"],
+            y=df["r"],
+            color=legends[0]
+        ),
+        size=0.5
+    ) +\
+    gg.geom_line(
+        mapping=gg.aes(
+            x=df_slice1["axis"],
+            y=df_slice1["r"],
+            color=legends[1]
+        ),
+        size=0.5
+    ) +\
+    gg.ggtitle(
+        "Série total versus recorte: comparação de retornos na mesma escala"
+    ) +\
+    gg.labs(
+        y = "Retorno Log-Preço",
+        subtitle=f"Recorte: {str_st_slice} a {str_end_slice}"
+    ) +\
+    gg.scale_y_continuous(
+        breaks=ticks,
+        limits=[-y_max, y_max]
+    ) +\
+    gg.scale_color_manual(
+        name="ignored",
+        values={
+            "Série Total": "#c9c9c9",
+            "Recorte": "#4d3cc9"
+        }
+    ) +\
+    gg.theme(
+        panel_border=gg.element_blank(),
+        panel_grid=gg.element_blank(),
+        axis_text_x=gg.element_blank(),
+        axis_title_x=gg.element_blank(),
+        axis_ticks=gg.element_blank(),
+        plot_title=gg.element_text(hjust=0.5),
+        plot_subtitle=gg.element_text(hjust=0.5),
+        legend_position="bottom",
+        legend_title = gg.element_blank(),
+        legend_key = gg.element_blank()
+    )
+    
+
