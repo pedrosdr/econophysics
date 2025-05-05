@@ -347,7 +347,7 @@ autocorr_chart(
 autocorr_chart(
     df["v"], 
     log=True, 
-    n_lags=350,
+    n_lags=400,
     title=f"Autocorrelação normalizada da volatilidade do Ibovespa (log-log)\n{start_str} a {end_str}",
     ylab="Autocorrelação da volatilidade real |r|")
 
@@ -623,6 +623,7 @@ df_slice1 = df[(df["date"] > st_slice) & (df["date"] < end_slice)].copy()
 df["axis"] = np.arange(len(df), dtype="float32")
 df_slice1["axis"] = np.arange(len(df_slice1), dtype="float32")
 df_slice1["axis"] = df_slice1["axis"] * (np.max(df["axis"]) / np.max(df_slice1["axis"]))
+df_slice1["r"] = df_slice1["r"] * (np.std(df["r"]) / np.std(df_slice1["r"]))
 
 y_min, y_max = df["r"].min(), df["r"].max()
 y_max = np.max([np.abs(y_min), np.abs(y_max)])
