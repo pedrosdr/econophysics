@@ -624,6 +624,7 @@ df["axis"] = np.arange(len(df), dtype="float32")
 df_slice1["axis"] = np.arange(len(df_slice1), dtype="float32")
 df_slice1["axis"] = df_slice1["axis"] * (np.max(df["axis"]) / np.max(df_slice1["axis"]))
 df_slice1["r"] = df_slice1["r"] * (np.std(df["r"]) / np.std(df_slice1["r"]))
+df_slice1["r"] = df_slice1["r"] + (df["r"].mean() - df_slice1["r"].mean())
 
 y_min, y_max = df["r"].min(), df["r"].max()
 y_max = np.max([np.abs(y_min), np.abs(y_max)])
@@ -681,5 +682,3 @@ gg.ggplot() + gg.theme_light() +\
         legend_title = gg.element_blank(),
         legend_key = gg.element_blank()
     )
-    
-
