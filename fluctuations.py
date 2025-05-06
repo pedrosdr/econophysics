@@ -5,6 +5,7 @@ import plotnine as gg
 from datetime import datetime, timedelta
 from typing import List
 from scipy.stats import kstest
+import scipy as sp
 
 # Define uma data de Início e Fim
 start_dt = datetime(year=1993, month=4, day=28)
@@ -453,32 +454,202 @@ fig
 # Comparando pedaços da série temporal dos retornos
 
 # -------------------------------------------------------------------
-# Histograma dos retornos log-preço do BVSP
+# Histograma dos retornos log-preço do BVSP (Comparação com a Normal)
 # -------------------------------------------------------------------
-df["r_log"] = np.log(df["r"])
-fig = gg.ggplot(data=df) + gg.theme_light() +\
+r_max = df["r"].std() * 4
+
+x_dist = np.linspace(-r_max, r_max, 10000)
+pdf_dist = sp.stats.norm.pdf(x_dist, loc=df["r"].mean(), scale=df["r"].std())
+
+gg.ggplot() + gg.theme_light() +\
     gg.geom_histogram(
         mapping=gg.aes(
-            x="r_log"
+            x=df["r"],
+            y=gg.after_stat("density")
         ),
-        fill="#c95e28"
+        fill="#a8a8a8"
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x=x_dist,
+            y=pdf_dist
+        )
     ) +\
     gg.ggtitle(
         title=f"Histograma do Retorno Log-Preço do BVSP de {start_str} a {end_str}"
     ) +\
     gg.labs(
-        y="Número de observações",
-        x="Retorno Log-Preço do BVSP descontado (r)"
+        y="Densidade de Probabilidade",
+        x="Retorno Log-Preço do BVSP descontado (r)",
+        subtitle="Comparação com a Normal de mesma média e variância"
     ) +\
+    gg.coord_cartesian(xlim=[-r_max, r_max]) +\
     gg.theme(
-       panel_border=gg.element_blank(),
        panel_grid=gg.element_blank(),
-       axis_ticks=gg.element_blank(),
        legend_title=gg.element_blank(),
        legend_position="bottom",
-       plot_title=gg.element_text(hjust=0.5)
+       plot_title=gg.element_text(hjust=0.5),
+       plot_subtitle=gg.element_text(hjust=0.5)        
     )
-fig
+    
+# -------------------------------------------------------------------
+# Histograma dos retornos log-preço do BVSP (Comparação com a Cauchy)
+# -------------------------------------------------------------------
+r_max = df["r"].std() * 4
+
+x_dist = np.linspace(-r_max, r_max, 10000)
+pdf_dist = sp.stats.cauchy.pdf(x_dist, loc=df["r"].mean(), scale=0.011)
+
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_histogram(
+        mapping=gg.aes(
+            x=df["r"],
+            y=gg.after_stat("density")
+        ),
+        fill="#a8a8a8"
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x=x_dist,
+            y=pdf_dist
+        )
+    ) +\
+    gg.ggtitle(
+        title=f"Histograma do Retorno Log-Preço do BVSP de {start_str} a {end_str}"
+    ) +\
+    gg.labs(
+        y="Densidade de Probabilidade",
+        x="Retorno Log-Preço do BVSP descontado (r)",
+        subtitle="Comparação com a Cauchy com valor de γ=0.011"
+    ) +\
+    gg.coord_cartesian(xlim=[-r_max, r_max]) +\
+    gg.theme(
+       panel_grid=gg.element_blank(),
+       legend_title=gg.element_blank(),
+       legend_position="bottom",
+       plot_title=gg.element_text(hjust=0.5),
+       plot_subtitle=gg.element_text(hjust=0.5)        
+    )
+    
+# -------------------------------------------------------------------
+# Histograma da volatilidade do BVSP (Comparação com a Levy)
+# -------------------------------------------------------------------
+r_max = df["v"].std() * 4
+
+x_dist = np.linspace(0.0, r_max, 10000)
+pdf_dist = sp.stats.levy.pdf(x_dist, scale=0.008)
+
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_histogram(
+        mapping=gg.aes(
+            x=df["v"],
+            y=gg.after_stat("density")
+        ),
+        fill="#a8a8a8"
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x=x_dist,
+            y=pdf_dist
+        )
+    ) +\
+    gg.ggtitle(
+        title=f"Histograma da volatilidade do BVSP de {start_str} a {end_str}"
+    ) +\
+    gg.labs(
+        y="Densidade de Probabilidade",
+        x="Volatilidade do BVSP",
+        subtitle="Comparação com a Lévy com valor de c=0.008"
+    ) +\
+    gg.coord_cartesian(xlim=[0.0 - df["v"].std()*0.5, r_max]) +\
+    gg.theme(
+       panel_grid=gg.element_blank(),
+       legend_title=gg.element_blank(),
+       legend_position="bottom",
+       plot_title=gg.element_text(hjust=0.5),
+       plot_subtitle=gg.element_text(hjust=0.5)        
+    )
+    
+
+# -------------------------------------------------------------------
+# Histograma da volatilidade do BVSP (Comparação com a Exponencial)
+# -------------------------------------------------------------------
+r_max = df["v"].std() * 4
+
+x_dist = np.linspace(0.0, r_max, 10000)
+pdf_dist = sp.stats.expon.pdf(x_dist, scale=0.016)
+
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_histogram(
+        mapping=gg.aes(
+            x=df["v"],
+            y=gg.after_stat("density")
+        ),
+        fill="#a8a8a8"
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x=x_dist,
+            y=pdf_dist
+        )
+    ) +\
+    gg.ggtitle(
+        title=f"Histograma da volatilidade do BVSP de {start_str} a {end_str}"
+    ) +\
+    gg.labs(
+        y="Densidade de Probabilidade",
+        x="Volatilidade do BVSP",
+        subtitle="Comparação com a Exponencial com valor de γ=0.016"
+    ) +\
+    gg.coord_cartesian(xlim=[0.0 - df["v"].std()*0.5, r_max]) +\
+    gg.theme(
+       panel_grid=gg.element_blank(),
+       legend_title=gg.element_blank(),
+       legend_position="bottom",
+       plot_title=gg.element_text(hjust=0.5),
+       plot_subtitle=gg.element_text(hjust=0.5)        
+    )
+    
+
+# -------------------------------------------------------------------
+# Histograma da volatilidade do BVSP (Comparação com a Log-Normal)
+# -------------------------------------------------------------------
+r_max = df["v"].std() * 4
+
+x_dist = np.linspace(0.0, r_max, 10000)
+pdf_dist = sp.stats.lognorm.pdf(x_dist, s=1.0, scale=df["v"].std())
+
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_histogram(
+        mapping=gg.aes(
+            x=df["v"],
+            y=gg.after_stat("density")
+        ),
+        fill="#a8a8a8"
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x=x_dist,
+            y=pdf_dist
+        )
+    ) +\
+    gg.ggtitle(
+        title=f"Histograma da volatilidade do BVSP de {start_str} a {end_str}"
+    ) +\
+    gg.labs(
+        y="Densidade de Probabilidade",
+        x="Volatilidade do BVSP",
+        subtitle="Comparação com a Log-Normal com mesma média e desvio padrão"
+    ) +\
+    gg.coord_cartesian(xlim=[0.0 - df["v"].std()*0.5, r_max]) +\
+    gg.theme(
+       panel_grid=gg.element_blank(),
+       legend_title=gg.element_blank(),
+       legend_position="bottom",
+       plot_title=gg.element_text(hjust=0.5),
+       plot_subtitle=gg.element_text(hjust=0.5)        
+    )
+    
 
 # -------------------------------------------------------------------
 # Seleção de dois recortes da série de retornos e comparação
