@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import List
 from scipy.stats import kstest
 import scipy as sp
+import seaborn as sns
 
 # Define uma data de Início e Fim
 start_dt = datetime(year=1993, month=4, day=28)
@@ -361,6 +362,97 @@ autocorr_chart(
     ylab="Autocorrelação da volatilidade nominal |r + rf|")
 
 
+# -------------------------------------------------------------------
+# Transformando a volatilidade usando Box-Cox
+# -------------------------------------------------------------------
+
+# Plota histograma da volatilidade original
+sns.histplot(x=df["v"])
+
+# Aplica Box-Cox à série df["v"], retorna valores transformados e λ estimado
+df["v_bcx"], lambda_bcx = lamb=sp.stats.boxcox(df["v"])
+
+# Plota histograma da volatilidade após Box-Cox
+sns.histplot(x=df["v_bcx"])
+
+
+def boxcox(x, lambd):
+    """
+    Função que aplica a transformação de Box-Cox manualmente
+    """
+    if lambd == 0.0:
+        return np.log(x)
+    return (np.power(x, lambd) - 1.0) / lambd
+
+
+def inv_boxcox(x, lambd):
+    """
+    Função inversa da transformação de Box-Cox
+    """
+    if lambd == 0.0:
+        return np.exp(x)
+    return np.power(lambd*x + 1.0, 1.0/lambd)
+
+
+# Calcula autocorrelação da volatilidade em até 400 defasagens
+corrs = autocorr(df["v"], n_lags=400)
+
+# Cria gráfico de autocorrelação com eixos na escala Box-Cox, mas rótulos 
+# na escala original
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_line(
+        mapping=gg.aes(
+            x=boxcox(np.arange(len(corrs)), lambda_bcx)[1:],
+            y=boxcox(corrs, lambda_bcx)[1:]
+        )    
+    ) +\
+    gg.ggtitle(f"Autocorrelação normalizada da volatilidade do Ibovespa\n{start_str} a {end_str}") +\
+    gg.labs(
+        y="Autocorrelação da volatilidade real |r|",
+        x="Defasagem em dias úteis",
+        subtitle=f"Plotagem Box-Cox—Box-Cox (λ={lambda_bcx:.3f})"
+    ) +\
+    gg.scale_x_continuous(
+        labels = lambda breaks: [f"{inv_boxcox(br, lambda_bcx):.1f}" for br in breaks]
+    ) +\
+    gg.scale_y_continuous(
+        labels = lambda breaks: [f"{inv_boxcox(br, lambda_bcx):.1f}" for br in breaks]
+    ) +\
+    gg.theme(
+        plot_title=gg.element_text(hjust=0.5),
+        plot_subtitle=gg.element_text(hjust=0.5),
+        panel_grid=gg.element_blank()
+    )
+    
+
+# Cria gráfico de autocorrelação com eixos na escala log-log, mas rótulos 
+# na escala original
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_line(
+        mapping=gg.aes(
+            x=np.log(np.arange(len(corrs)))[1:],
+            y=np.log(corrs)[1:]
+        )    
+    ) +\
+    gg.ggtitle(f"Autocorrelação normalizada da volatilidade do Ibovespa\n{start_str} a {end_str}") +\
+    gg.labs(
+        y="Autocorrelação da volatilidade real |r|",
+        x="Defasagem em dias úteis",
+        subtitle="Plotagem log-log"
+    ) +\
+    gg.scale_x_continuous(
+        labels = lambda breaks: [f"{np.exp(br):.1f}" for br in breaks]
+    ) +\
+    gg.scale_y_continuous(
+        labels = lambda breaks: [f"{np.exp(br):.1f}" for br in breaks]
+    ) +\
+    gg.theme(
+        plot_title=gg.element_text(hjust=0.5),
+        plot_subtitle=gg.element_text(hjust=0.5),
+        panel_grid=gg.element_blank()
+    )
+
+
 # Analisando a evolução de um investimento inicial de 1 R$ nos dois investimen-
 # tos
 
@@ -491,7 +583,6 @@ gg.ggplot() + gg.theme_light() +\
        plot_title=gg.element_text(hjust=0.5),
        plot_subtitle=gg.element_text(hjust=0.5)        
     )
-    
 # -------------------------------------------------------------------
 # Histograma dos retornos log-preço do BVSP (Comparação com a Cauchy)
 # -------------------------------------------------------------------
