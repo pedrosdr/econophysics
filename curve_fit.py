@@ -2,70 +2,108 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from scipy.optimize import least_squares
-import seaborn as sns
-import yfinance as yf
+import itertools
+import plotnine as gg
+
+# carrega série BVSP entre start_dt e end_dt
+start_dt = datetime(2015,11,1)
+end_dt = datetime(2021,5,1)
+
+bvsp_df = (pd.read_csv("bvsp.csv", parse_dates=["Date"])
+             .query("Date > @start_dt and Date < @end_dt")
+             .set_index("Date"))
+df = bvsp_df.copy()
+y_full = np.log(df["Close"].to_numpy())
+t_full = np.arange(len(df))
+
+# define t e y para a fase de busca inicial
+t = np.arange(900)
+y = y_full[:900]
 
 
-# Define uma data de Início e Fim
-start_dt = datetime(year=2015, month=11, day=1)
-end_dt = datetime(year=2021, month=5, day=1)
-
-# Lê o arquivo CSV do BVSP
-bvsp_df = pd.read_csv("bvsp.csv")
-bvsp_df["Date"] = pd.to_datetime(bvsp_df["Date"])
-bvsp_df = bvsp_df[bvsp_df["Date"] > start_dt]
-bvsp_df = bvsp_df[bvsp_df["Date"] < end_dt]
-bvsp_df = bvsp_df.set_index("Date")
-
-df = bvsp_df
-sns.lineplot(x=np.arange(len(df)), y=df["Close"])
-
-# Nasdaq
-df = yf.download('^IXIC', start='1996-05-01', end='2000-12-31')
-df.columns = [x[0] for x in df.columns]
-
-
+# modelo e função de resíduos
 def model(t, params):
     A, B, D, C, W, T, F = params
-    return A + (B*(T-t)**D)*(1+C*np.cos(W*np.log(T-t) + F))
+    return A + (B*(T-t)**D)*(1 + C*np.cos(W*np.log(T-t) + F))
 
 
 def resid(params, t, y):
     return y - model(t, params)
 
 
-t = np.arange(len(df[:1000]))
-y = np.log(df[:1000]["Close"]).to_numpy()
+# grade de chute inicial (x0)
+grid = {
+    "A": [np.mean(y), y[0], y.max()],
+    "B": [np.ptp(y), 10.0, -10.0],
+    "D": [0.1, 0.5],
+    "C": [1.0, 10.0],
+    "W": [5.0, 10.0],
+    "T": [t.max()*1.05, t.max()*1.10, t.max()*1.50],
+    "F": [1.0, 10.0]
+}
 
+# gera lista de tuplas com todas as combinações de (A,B,D,C,W,T,F)
+x0s = list(itertools.product(*grid.values()))
 
-A0  = np.mean(y)
-B0  = np.ptp(y)
-T0 = t.max() + 0.1*t.max()
-D0  = 0.5
-C0  = 0.2
-W0  = 10.0
-F0  = 0.2
-
-x0 = [A0, B0, D0, C0, W0, T0, F0]
-
-bounds = ([-np.inf, -np.inf, 0.0, -np.inf, 5.0, t.max()+10e-6, -np.inf],
-          [np.inf, np.inf, 1.0, np.inf, 15.0, np.inf, np.inf])
-
-res = least_squares(
-    fun = resid,
-    args = (t, y),
-    x0 = x0,
-    method="trf",
-    bounds=bounds,
-    max_nfev=100000
+# limites para o least_squares
+bounds = (
+    [-np.inf, -np.inf, 0.0, -np.inf, 5.0, t.max()+1e-6, -np.inf],
+    [ np.inf,  np.inf, 1.0,  np.inf, 15.0,      np.inf,  np.inf]
 )
-res.success
-params = res.x
 
-t = np.arange(len(df))
-y = np.log(df["Close"]).to_numpy()
+# percorre todas as chutes iniciais, guarda (mse, resultado)
+resultados = []
+for i in range(len(x0s)):
+    x0 = x0s[i]
+    res = least_squares(resid, x0, args=(t,y),
+                        bounds=bounds, method="trf", max_nfev=100_000)
+    mse = np.mean((y - model(t, res.x))**2)
+    resultados.append((mse, res))
+    print(f"Época: {i}")
 
-tt = np.linspace(0, params[5], 1000)
-ypred = model(tt, params)
-sns.lineplot(x=t, y=y)
-sns.lineplot(x=tt, y=ypred)
+# extrai o ajuste com menor MSE
+best_mse, best_res = min(resultados, key=lambda x: x[0])
+best_params = best_res.x
+
+# best_params = [ 1.17471997e+01, -8.43967769e-04,  1.00000000e+00,  
+#                 1.00118380e-01, 1.50000000e+01,  1.16543703e+03, 
+#                 -6.12327663e+01]
+
+print(f"Melhor MSE encontrado: {best_mse:.6f}")
+print("Parâmetros ótimos:", best_params)
+
+# aplica o modelo a toda a série
+y_pred_full = model(t_full, best_params)
+
+# plota os gráficos
+dfplot = pd.DataFrame({
+    "ln_s": y_full,
+    "ln_s_pred": y_pred_full,
+    "date": df.index    
+})
+
+gg.ggplot(dfplot) + gg.theme_light() +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x="date",
+            y="ln_s"
+        ),
+        size=0.3
+    ) +\
+    gg.geom_line(
+        mapping = gg.aes(
+            x="date",
+            y="ln_s_pred"
+        ),
+        size=1
+    ) +\
+    gg.scale_x_datetime(
+        labels=lambda x: [dt.strftime("%Y") for dt in x]
+    ) +\
+    gg.ggtitle("Ajuste do Modelo Log-Periódico") +\
+    gg.labs(y="log(preço)") +\
+    gg.theme(
+        panel_grid=gg.element_blank(),
+        axis_title_x=gg.element_blank(),
+        plot_title=gg.element_text(hjust=0.5)
+    )
