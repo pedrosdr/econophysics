@@ -9,8 +9,8 @@ import scipy as sp
 import seaborn as sns
 
 # Define uma data de Início e Fim
-start_dt = datetime(year=1993, month=4, day=28)
-end_dt = datetime(year=2025, month=4, day=27)
+start_dt = datetime(year=1980, month=1, day=1)
+end_dt = datetime(year=2025, month=5, day=11)
 
 # Lê a base da taxa selic
 selic_df = pd.read_csv("selic.csv", sep=";")
@@ -34,11 +34,19 @@ selic_df["selic"] = selic_df["selic"] / 100.0
 selic_df["rf"] = np.log(selic_df["selic"] + 1.0) / 252.0
 
 
-# Baixa os dados do Ibovespa usando a API yfinance
-bvsp_df = yf.download(["^BVSP"], start=start_dt, end=end_dt)
+# # Baixa os dados do Ibovespa usando a API yfinance
+# bvsp_df = yf.download(["^BVSP"], start=start_dt, end=end_dt)
+  
+# # As colunas estão em formato MultiIndex, converte para formato normal
+# bvsp_df.columns = [x[0] for x in bvsp_df.columns]
+# bvsp_df.to_csv("bvsp.csv")
 
-# As colunas estão em formato MultiIndex, converte para formato normal
-bvsp_df.columns = [x[0] for x in bvsp_df.columns]
+# Lê o arquivo CSV do BVSP
+bvsp_df = pd.read_csv("bvsp.csv")
+bvsp_df["Date"] = pd.to_datetime(bvsp_df["Date"])
+bvsp_df = bvsp_df[bvsp_df["Date"] > start_dt]
+bvsp_df = bvsp_df[bvsp_df["Date"] < end_dt]
+bvsp_df = bvsp_df.set_index("Date")
 
 # Mantém apenas os valores de fechamento e renomeia para 's'
 bvsp_df = bvsp_df.loc[:,["Close"]]
@@ -452,6 +460,67 @@ gg.ggplot() + gg.theme_light() +\
         panel_grid=gg.element_blank()
     )
 
+
+# -------------------------------------------------------------------
+# Transformando a volatilidade usando Box-Cox Imaginário
+# -------------------------------------------------------------------
+
+def boxcox_img(x, lambd, real=False):
+    """
+    Função que aplica a transformação de Box-Cox manualmente
+    """
+    if lambd == 0.0:
+        return np.log(x)
+    transf = np.array((np.power(x, lambd) - 1.0) / lambd)
+    return transf.real if real else transf.imag
+
+
+def inv_boxcox_img(x, lambd, real=False):
+    """
+    Função inversa da transformação de Box-Cox
+    """
+    if lambd == 0.0:
+        return np.exp(x)
+    transf = np.power(lambd*x + 1.0, 1.0/lambd)
+    return transf.real if real else transf.imag
+
+
+# Plota histograma da volatilidade original
+sns.histplot(x=df["v"])
+
+lambda_bcx = 0.24 + 40j
+bx = boxcox_img(df["v"], lambda_bcx, real=True)
+sns.histplot(x=bx)
+
+# Calcula autocorrelação da volatilidade em até 400 defasagens
+corrs = autocorr(df["v"], n_lags=400)
+
+# Cria gráfico de autocorrelação com eixos na escala Box-Cox, mas rótulos 
+# na escala original
+gg.ggplot() + gg.theme_light() +\
+    gg.geom_line(
+        mapping=gg.aes(
+            x=boxcox(np.arange(len(corrs)), lambda_bcx, real=False)[1:],
+            y=boxcox(corrs, lambda_bcx, real=False)[1:]
+        )    
+    ) +\
+    gg.ggtitle(f"Autocorrelação normalizada da volatilidade do Ibovespa\n{start_str} a {end_str}") +\
+    gg.labs(
+        y="Autocorrelação da volatilidade real |r|",
+        x="Defasagem em dias úteis",
+        subtitle=f"Plotagem Box-Cox—Box-Cox (λ={lambda_bcx:.3f})"
+    ) +\
+    gg.scale_x_continuous(
+        labels = lambda breaks: [f"{inv_boxcox_img(br, lambda_bcx, real=False):.1f}" for br in breaks]
+    ) +\
+    gg.scale_y_continuous(
+        labels = lambda breaks: [f"{inv_boxcox_img(br, lambda_bcx, real=False):.1f}" for br in breaks]
+    ) +\
+    gg.theme(
+        plot_title=gg.element_text(hjust=0.5),
+        plot_subtitle=gg.element_text(hjust=0.5),
+        panel_grid=gg.element_blank()
+    )
 
 # Analisando a evolução de um investimento inicial de 1 R$ nos dois investimen-
 # tos

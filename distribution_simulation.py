@@ -48,4 +48,4 @@ distplot(x, title="Distribuição Normal Padrão")
 # Cauchy
 x = sp.stats.cauchy.rvs(size=size)
 distplot(x, title="Distribuição Cauchy (Com zoom)")
-distplot(x, min_y=-10, max_y=10, title="Distribuição Cauchy (Com zoom)")
+distplot(x, min_y=-4, max_y=4, title="Distribuição Cauchy (Com zoom)")
