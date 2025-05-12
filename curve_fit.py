@@ -3,7 +3,6 @@ import numpy as np
 from datetime import datetime
 from scipy.optimize import least_squares
 import seaborn as sns
-import matplotlib.pyplot as plt
 import yfinance as yf
 
 
@@ -18,14 +17,12 @@ bvsp_df = bvsp_df[bvsp_df["Date"] > start_dt]
 bvsp_df = bvsp_df[bvsp_df["Date"] < end_dt]
 bvsp_df = bvsp_df.set_index("Date")
 
-# # Baixa os dados do DOW JONES usando a API yfinance
-df = yf.download(["^HSI"], start=start_dt, end=end_dt)
-  
-# # As colunas estão em formato MultiIndex, converte para formato normal
-df.columns = [x[0] for x in df.columns]
-
 df = bvsp_df
 sns.lineplot(x=np.arange(len(df)), y=df["Close"])
+
+# Nasdaq
+df = yf.download('^IXIC', start='1996-05-01', end='2000-12-31')
+df.columns = [x[0] for x in df.columns]
 
 
 def model(t, params):
