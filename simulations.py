@@ -299,3 +299,58 @@ print(g_s_simul)
 print(g_r_simul)
 print(g_v_simul)
 print(g_ac_v_simul)
+
+
+# Plotando a distribuição acumulada da volatilidade
+counts, edges = np.histogram(df["v"], bins=10000)
+prob = counts / counts.sum()
+x = edges[1:]
+cdf = np.flip(np.flip(prob).cumsum())
+
+df_cdf = pd.DataFrame({
+    "x": x,
+    "cdf": cdf    
+})
+
+df_cdf = df_cdf[df_cdf["x"] > 0.0001]
+
+
+def plot_cdf(df_cdf, log_x = False, log_y = False):
+    fig = gg.ggplot(df_cdf) + gg.theme_light() +\
+        gg.geom_line(mapping = gg.aes(
+            x="x",
+            y="cdf"
+        )) +\
+        gg.theme(
+            panel_grid=gg.element_blank(),
+            plot_title=gg.element_text(hjust=0.5)
+        ) +\
+        gg.labs(
+            x="Volatilidade",
+            y="P(|r| > |r(t, 1day)|)"
+        )
+        
+    if log_x:
+        fig = fig + gg.scale_x_log10()
+    
+    if log_y:
+        fig = fig + gg.scale_y_log10()
+        
+    return fig
+
+
+plot_cdf(df_cdf)
+plot_cdf(df_cdf, log_y=True)
+plot_cdf(df_cdf, log_y=True, log_x=True)
+
+df_cdf["logx"] = np.log(df_cdf["x"])
+df_cdf["logcdf"] = np.log(df_cdf["cdf"])
+
+df_filt = df_cdf[df_cdf["x"] > 0.015]
+plot_cdf(df_filt, log_x=True, log_y=True)
+
+d_x = df_filt["logx"].iloc[0] - df_filt["logx"].iloc[-1]
+d_cdf = df_filt["logcdf"].iloc[0] - df_filt["logcdf"].iloc[-1]
+    
+coef = d_cdf / d_x
+print("Expoente da Lei de Potência ~", coef)
