@@ -636,6 +636,7 @@ gg.ggplot() + gg.theme_light() +\
             y=pdf_dist
         )
     ) +\
+    gg.scale_y_log10() +\
     gg.ggtitle(
         title=f"Histograma do Retorno Log-Preço do BVSP de {start_str} a {end_str}"
     ) +\
@@ -677,6 +678,7 @@ gg.ggplot() + gg.theme_light() +\
     gg.ggtitle(
         title=f"Histograma do Retorno Log-Preço do BVSP de {start_str} a {end_str}"
     ) +\
+    gg.scale_y_log10() +\
     gg.labs(
         y="Densidade de Probabilidade",
         x="Retorno Log-Preço do BVSP descontado (r)",
