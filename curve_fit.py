@@ -6,8 +6,11 @@ import itertools
 import plotnine as gg
 
 # carrega série BVSP entre start_dt e end_dt
-start_dt = datetime(2015,11,1)
-end_dt = datetime(2021,5,1)
+# start_dt = datetime(2015,11,1)
+# end_dt = datetime(2021,5,1)
+
+start_dt = datetime(2004,11,1)
+end_dt = datetime(2010,5,1)
 
 bvsp_df = (pd.read_csv("bvsp.csv", parse_dates=["Date"])
              .query("Date > @start_dt and Date < @end_dt")
@@ -16,9 +19,13 @@ df = bvsp_df.copy()
 y_full = np.log(df["Close"].to_numpy())
 t_full = np.arange(len(df))
 
+import seaborn as sns
+sns.lineplot(x=t_full, y=y_full)
+
+
 # define t e y para a fase de busca inicial
-t = np.arange(900)
-y = y_full[:900]
+t = np.arange(850)
+y = y_full[:850]
 
 
 # modelo e função de resíduos
@@ -65,9 +72,15 @@ for i in range(len(x0s)):
 best_mse, best_res = min(resultados, key=lambda x: x[0])
 best_params = best_res.x
 
+# Pandemia
 # best_params = [ 1.17471997e+01, -8.43967769e-04,  1.00000000e+00,  
 #                 1.00118380e-01, 1.50000000e+01,  1.16543703e+03, 
 #                 -6.12327663e+01]
+
+# Crise 2008
+# best_params = [ 1.15821767e+01, -6.74477044e-03,  7.75165631e-01, 
+#                 -5.98349787e-02, 1.50000000e+01,  1.07970040e+03, 
+#                 -3.62970531e+01]
 
 print(f"Melhor MSE encontrado: {best_mse:.6f}")
 print("Parâmetros ótimos:", best_params)
