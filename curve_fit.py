@@ -4,18 +4,32 @@ from datetime import datetime
 from scipy.optimize import least_squares
 import itertools
 import plotnine as gg
+import yfinance as yf
 
 # carrega série BVSP entre start_dt e end_dt
-# start_dt = datetime(2015,11,1)
-# end_dt = datetime(2021,5,1)
+start_dt = datetime(2015,11,1)
+end_dt = datetime(2021,5,1)
 
-start_dt = datetime(2004,11,1)
-end_dt = datetime(2010,5,1)
+# start_dt = datetime(2004,11,1)
+# end_dt = datetime(2010,5,1)
 
+# start_dt = datetime(2002,11,1)
+# end_dt = datetime(2010,5,1)
+
+# Ibovespa
 bvsp_df = (pd.read_csv("bvsp.csv", parse_dates=["Date"])
              .query("Date > @start_dt and Date < @end_dt")
              .set_index("Date"))
 df = bvsp_df.copy()
+
+# # Dow Jones
+# df = yf.download(["^DJI"], start = start_dt, end = end_dt)
+# df.columns = [x[0] for x in df.columns]
+
+# # Nasdaq
+# df = yf.download(["^IXIC"], start = start_dt, end = end_dt)
+# df.columns = [x[0] for x in df.columns]
+
 y_full = np.log(df["Close"].to_numpy())
 t_full = np.arange(len(df))
 
@@ -59,31 +73,50 @@ bounds = (
 )
 
 # percorre todas as chutes iniciais, guarda (mse, resultado)
-resultados = []
-for i in range(len(x0s)):
-    x0 = x0s[i]
-    res = least_squares(resid, x0, args=(t,y),
-                        bounds=bounds, method="trf", max_nfev=100_000)
-    mse = np.mean((y - model(t, res.x))**2)
-    resultados.append((mse, res))
-    print(f"Época: {i}")
+# True Region
+# Levenberg–Marquardt
+# resultados = []
+# for i in range(len(x0s)):
+#     x0 = x0s[i]
+#     res = least_squares(
+#         resid, x0, args=(t,y),
+#         bounds=bounds, 
+#         method="trf", max_nfev=100_000)
+#     mse = np.mean((y - model(t, res.x))**2)
+#     resultados.append((mse, res))
+#     print(f"Época: {i}")
 
-# extrai o ajuste com menor MSE
-best_mse, best_res = min(resultados, key=lambda x: x[0])
-best_params = best_res.x
+# # extrai o ajuste com menor MSE
+# best_mse, best_res = min(resultados, key=lambda x: x[0])
+# best_params = best_res.x
 
-# Pandemia
-# best_params = [ 1.17471997e+01, -8.43967769e-04,  1.00000000e+00,  
-#                 1.00118380e-01, 1.50000000e+01,  1.16543703e+03, 
-#                 -6.12327663e+01]
+# print(f"Melhor MSE encontrado: {best_mse:.6f}")
+# print("Parâmetros ótimos:", best_params)
 
-# Crise 2008
+# Pandemia - True Region (2015-2021) Treinado com 850 observações
+best_params = [ 1.17471997e+01, -8.43967769e-04,  1.00000000e+00,  
+                1.00118380e-01, 1.50000000e+01,  1.16543703e+03, 
+                -6.12327663e+01]
+
+# # Crise 2008 - True Region (2004-2010) Treinado com 850 observações
 # best_params = [ 1.15821767e+01, -6.74477044e-03,  7.75165631e-01, 
 #                 -5.98349787e-02, 1.50000000e+01,  1.07970040e+03, 
 #                 -3.62970531e+01]
 
-print(f"Melhor MSE encontrado: {best_mse:.6f}")
-print("Parâmetros ótimos:", best_params)
+# Crise 2008 - Levenberg–Marquardt (2004-2010) Treinado com 850 observações
+# best_params = [ 5.65788741e+00,  3.06094534e+18, -4.21427903e+00, 
+#                 1.34300430e-02, 2.96418839e+02,  1.71288502e+04, 
+#                 -2.85235701e+03]
+
+# Crise 2008 - Dow Jones (True Region) (2004-2010) Treinado com 850 observações
+# best_params = [ 1.60640712e+02, -1.50827850e+02,  4.30261945e-04, 
+#                -6.78770278e-04, 5.00000000e+00,  1.26121442e+03,  
+#                4.99871983e+01]
+
+# Crise 2008 - Nasdaq (True Region) (2002-2010) Treinado com 1250 observações
+# best_params = [ 7.90893465e+00, -4.12163503e-04,  1.00000000e+00, 
+#                -2.45553479e-01, 1.00537646e+01,  1.31678191e+03,  
+#                1.20894409e-01]
 
 # aplica o modelo a toda a série
 y_pred_full = model(t_full, best_params)
